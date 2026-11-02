@@ -12,6 +12,7 @@ import regex as re
 from collections import Counter, defaultdict
 from cs336_basics.Tokenizer import Tokenizer
 from cs336_basics.Linear import Linear
+from cs336_basics.Embedding import Embedding
 
 
 def run_linear(
@@ -57,8 +58,9 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
-
+    model = Embedding(vocab_size, d_model)
+    model.load_state_dict({'Embedding': weights})
+    return model(token_ids)
 
 def run_swiglu(
     d_model: int,
