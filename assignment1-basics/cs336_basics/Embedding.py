@@ -11,5 +11,3 @@ class Embedding(nn.Module):
     
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         return self.Embedding[token_ids]
-        
-
