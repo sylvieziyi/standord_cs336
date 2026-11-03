@@ -7,8 +7,8 @@ import platform
 
 from pathlib import Path
 
-# Reuse the function that already passes your tests.
-from tests.adapters import run_train_bpe
+# Use the shared tokenizer training implementation.
+from cs336_basics.tokenizer import train_bpe
 
 
 def train(dataset, input_path, vocab_size, special_tokens, output_dir):
@@ -19,7 +19,7 @@ def train(dataset, input_path, vocab_size, special_tokens, output_dir):
     start = time.perf_counter()
 
     # 2. Train BPE tokenizer
-    vocab, merges = run_train_bpe(
+    vocab, merges = train_bpe(
         input_path=input_path,
         vocab_size=vocab_size,
         special_tokens=special_tokens,

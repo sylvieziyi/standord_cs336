@@ -6,6 +6,24 @@ For a full description of the assignment, see the assignment handout at
 If you see any issues with the assignment handout or code, please feel free to
 raise a GitHub issue or open a pull request with a fix.
 
+## Project layout
+
+- `cs336_basics/tokenizer/`: the tokenizer, BPE training, Unicode exercises, and pre-tokenization example.
+- `cs336_basics/transformer/`: Linear, Embedding, and RMSNorm building blocks.
+- `cs336_basics/experiments/`: executable experiment entry points.
+- `tests/adapters.py`: the course test interface, which delegates to these implementations.
+
+### Run BPE experiments
+
+Run from the assignment root after downloading the data:
+
+```sh
+uv run python -m cs336_basics.experiments.train_bpe_experiment --dataset tinystories
+uv run python -m cs336_basics.experiments.train_bpe_experiment --dataset owt
+```
+
+Use `--input`, `--vocab-size`, or `--output-dir` to override the dataset defaults.
+
 ## Setup
 
 ### Environment
