@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.transformer import Embedding, Linear, RMSNorm, SwiGLU, RotaryPositionalEmbedding, softmax, attention
+from cs336_basics.transformer import Embedding, Linear, RMSNorm, SwiGLU, RotaryPositionalEmbedding, softmax, attention, MultiHeadSelfAttention
 
 
 def run_linear(
@@ -120,6 +120,13 @@ def run_scaled_dot_product_attention(
     """
     return attention(Q, K, V, mask)
 
+def load_mha_weights(mha, q, k, v, o):
+    with torch.no_grad():
+        mha.q_proj.weight.copy_(q)
+        mha.k_proj.weight.copy_(k)
+        mha.v_proj.weight.copy_(v)
+        mha.o_proj.weight.copy_(o)
+
 def run_multihead_self_attention(
     d_model: int,
     num_heads: int,
@@ -151,7 +158,20 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    mha = MultiHeadSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+    ).to(device=in_features.device, dtype=in_features.dtype)
+
+    load_mha_weights(
+        mha,
+        q_proj_weight,
+        k_proj_weight,
+        v_proj_weight,
+        o_proj_weight,
+    )
+
+    return mha(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -191,7 +211,22 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    mha = MultiHeadSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        theta=theta,
+        max_seq_len=max_seq_len,
+    ).to(device=in_features.device, dtype=in_features.dtype)
+
+    load_mha_weights(
+        mha,
+        q_proj_weight,
+        k_proj_weight,
+        v_proj_weight,
+        o_proj_weight,
+    )
+
+    return mha(in_features, token_positions)
 
 
 def run_rope(
