@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.transformer import Embedding, Linear, RMSNorm, SwiGLU, RotaryPositionalEmbedding, softmax, attention, MultiHeadSelfAttention
+from cs336_basics.transformer import Embedding, Linear, RMSNorm, SwiGLU, RotaryPositionalEmbedding, softmax, attention, MultiHeadSelfAttention, TransformerBlock, TransformerLM
 
 
 def run_linear(
@@ -252,6 +252,43 @@ def run_rope(
     rope = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_len=max_seq_len, device=in_query_or_key.device,)
     return rope(in_query_or_key, token_positions)
 
+def copy_weight(module, weight):
+    # Get the learnable parameter of a module
+    params = list(module.parameters(recurse=False))
+    assert len(params) == 1
+
+    with torch.no_grad():
+        params[0].copy_(weight)
+
+
+def load_block_weights(block, weights):
+    # Q, K, V, O projections
+    copy_weight(
+        block.attn.q_proj,
+        weights["attn.q_proj.weight"],
+    )
+    copy_weight(
+        block.attn.k_proj,
+        weights["attn.k_proj.weight"],
+    )
+    copy_weight(
+        block.attn.v_proj,
+        weights["attn.v_proj.weight"],
+    )
+    copy_weight(
+        block.attn.o_proj,
+        weights["attn.output_proj.weight"],
+    )
+
+    # RMSNorm
+    copy_weight(block.ln1, weights["ln1.weight"])
+    copy_weight(block.ln2, weights["ln2.weight"])
+
+    # SwiGLU
+    copy_weight(block.ffn.w1, weights["ffn.w1.weight"])
+    copy_weight(block.ffn.w2, weights["ffn.w2.weight"])
+    copy_weight(block.ffn.w3, weights["ffn.w3.weight"])
+
 def run_transformer_block(
     d_model: int,
     num_heads: int,
@@ -322,7 +359,21 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    block = TransformerBlock(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        max_seq_len=max_seq_len,
+        theta=theta,
+    ).to(
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+
+    load_block_weights(block, weights)
+
+    return block(in_features)
+    
 
 
 def run_transformer_lm(
@@ -404,7 +455,54 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+
+    model = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+    ).to(
+        device=in_indices.device,
+        dtype=weights["token_embeddings.weight"].dtype,
+    )
+
+    # 1. Token embeddings
+    copy_weight(
+        model.token_embeddings,
+        weights["token_embeddings.weight"],
+    )
+
+    # 2. Load weights for each Transformer block
+    for i, block in enumerate(model.layers):
+        prefix = f"layers.{i}."
+
+        block_weights = {
+            key[len(prefix):]: value
+            for key, value in weights.items()
+            if key.startswith(prefix)
+        }
+
+        load_block_weights(block, block_weights)
+
+    # 3. Final RMSNorm
+    copy_weight(
+        model.ln_final,
+        weights["ln_final.weight"],
+    )
+
+    # 4. LM Head
+    copy_weight(
+        model.lm_head,
+        weights["lm_head.weight"],
+    )
+
+    # 5. Forward pass
+    return model(in_indices)
+
+    
 
 
 def run_rmsnorm(
