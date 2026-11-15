@@ -3,5 +3,6 @@
 CS336 coursework.
 
 - `assignment1-basics/`: current Assignment 1 code, tests, handout, and saved BPE vocabulary and merge artifacts.
+- `assignment2-systems/`: Assignment 2 starter code, tests, handout, and bundled course implementation of Assignment 1.
 
 Full training datasets, virtual environments, and caches are excluded. See the assignment README for data download instructions.
